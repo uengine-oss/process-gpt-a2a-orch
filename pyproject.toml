@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "a2a-agent-executor"
+version = "0.1.0"
+description = "A2A Agent Executor that forwards requests to another A2A agent"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Process GPT Team", email = "info@uengine.org"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "a2a-sdk>=0.2.4",
+    "pydantic>=2.0.0",
+    "asyncio",
+    "uvicorn>=0.17.0",
+    "process-gpt-agent-sdk",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+]
+
+[project.scripts]
+a2a-agent-executor = "a2a_agent_executor.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/a2a_agent_executor"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/a2a_agent_executor",
+    "README.md",
+    "LICENSE",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
