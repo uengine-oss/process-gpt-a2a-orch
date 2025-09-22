@@ -49,17 +49,10 @@ class A2AAgentExecutor(AgentExecutor):
         self.description = description
         self.version = version
         
-        # Process agent endpoint
-        if isinstance(agent_endpoint, str):
-            self.agent_endpoint = AgentEndpoint(url=agent_endpoint)
-        else:
-            self.agent_endpoint = AgentEndpoint(**agent_endpoint)
-        
-        # Initialize the client
-        self.httpx_client = httpx.AsyncClient()
-        self.client = A2AClient(httpx_client=self.httpx_client, url=self.agent_endpoint.url)
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
+
+
         """
         Execute the agent's logic for a given request context.
         
@@ -67,6 +60,17 @@ class A2AAgentExecutor(AgentExecutor):
             context: The request context containing the message, task ID, etc.
             event_queue: The queue to publish events to.
         """
+        context_data: Dict[str, Any] = getattr(context, "get_context_data", lambda: {})() or {}
+
+        agent_list = context_data.get("agent_list")
+        agent_endpoint = agent_list[0].endpoint
+
+
+        # Initialize the client
+        httpx_client = httpx.AsyncClient()
+        client = A2AClient(httpx_client=self.httpx_client, url=agent_endpoint)
+
+
         # Get task_id safely, handling SimulatorRequestContext which might not have _task_id
         task_id = getattr(context, "task_id", None)
         if task_id:
@@ -326,4 +330,64 @@ class A2AAgentExecutor(AgentExecutor):
             # For SimulatorEventQueue, use enqueue_event
             # Convert Task to dict to make it JSON serializable
             task_dict = task.model_dump() if hasattr(task, 'model_dump') else task.dict()
-            event_queue.enqueue_event(task_dict)
+            event_queue.enqueue_event(task_dict)  #TaskStatusUpdateEvent or ArtifactUpdateEvent 
+
+
+
+# sample :  must be corrected as follows:
+
+#  async for event in self.agent.stream(query, task.context_id):
+#             if event['is_task_complete']:
+#                 await event_queue.enqueue_event(
+#                     TaskArtifactUpdateEvent(
+#                         append=False,
+#                         context_id=task.context_id,
+#                         task_id=task.id,
+#                         last_chunk=True,
+#                         artifact=new_text_artifact(
+#                             name='current_result',
+#                             description='Result of request to agent.',
+#                             text=event['content'],
+#                         ),
+#                     )
+#                 )
+#                 await event_queue.enqueue_event(
+#                     TaskStatusUpdateEvent(
+#                         status=TaskStatus(state=TaskState.completed),
+#                         final=True,
+#                         context_id=task.context_id,
+#                         task_id=task.id,
+#                     )
+#                 )
+#             elif event['require_user_input']:
+#                 await event_queue.enqueue_event(
+#                     TaskStatusUpdateEvent(
+#                         status=TaskStatus(
+#                             state=TaskState.input_required,
+#                             message=new_agent_text_message(
+#                                 event['content'],
+#                                 task.context_id,
+#                                 task.id,
+#                             ),
+#                         ),
+#                         final=True,
+#                         context_id=task.context_id,
+#                         task_id=task.id,
+#                     )
+#                 )
+#             else:
+#                 await event_queue.enqueue_event(
+#                     TaskStatusUpdateEvent(
+#                         status=TaskStatus(
+#                             state=TaskState.working,
+#                             message=new_agent_text_message(
+#                                 event['content'],
+#                                 task.context_id,
+#                                 task.id,
+#                             ),
+#                         ),
+#                         final=False,
+#                         context_id=task.context_id,
+#                         task_id=task.id,
+#                     )
+#                 )
