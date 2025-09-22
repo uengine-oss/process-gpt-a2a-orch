@@ -2,10 +2,14 @@
 from processgpt_agent_sdk.simulator import ProcessGPTAgentSimulator
 from a2a_agent_executor import A2AAgentExecutor
 import asyncio
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 async def main():
     # 사용자 정의 실행기 생성
-    executor = A2AAgentExecutor(agent_endpoint="localhost:10002")
+    executor = A2AAgentExecutor(agent_endpoint={"url": "http://localhost:10002"})
     
     # 시뮬레이터 생성
     simulator = ProcessGPTAgentSimulator(

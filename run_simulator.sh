@@ -26,3 +26,4 @@ uv pip install -e .
 # Run the simulation
 echo "Running the simulation..."
 python src/simulation.py
+
