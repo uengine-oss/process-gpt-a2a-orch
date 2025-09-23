@@ -1,3 +1,16 @@
+import socket
+
+_orig_getaddrinfo = socket.getaddrinfo
+
+def _ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    # family=0 은 AF_UNSPEC (IPv4+IPv6 모두)
+    if family == 0:
+        family = socket.AF_INET
+    return _orig_getaddrinfo(host, port, family, type, proto, flags)
+
+socket.getaddrinfo = _ipv4_only_getaddrinfo
+
+
 import asyncio
 import os
 from processgpt_agent_sdk import ProcessGPTAgentServer
