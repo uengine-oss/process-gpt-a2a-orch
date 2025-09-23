@@ -19,10 +19,8 @@ WORKDIR /app
 # Copy requirements first for caching
 COPY requirements.txt ./
 
-# Create a virtualenv and install dependencies
-RUN python -m venv /opt/venv \
-    && . /opt/venv/bin/activate \
-    && pip install --upgrade pip \
+# Install dependencies globally (no virtualenv)
+RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
@@ -30,6 +28,9 @@ COPY src ./src
 
 EXPOSE 8000
 
-CMD ["python", "-m", "a2a_agent_executor.server"]
+# Ensure Python can import packages from src when running scripts directly
+ENV PYTHONPATH="/app/src"
+
+CMD ["python", "src/a2a_agent_executor/server.py"]
 
 
