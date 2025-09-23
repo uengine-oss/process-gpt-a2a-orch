@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
     # 사용자 정의 실행기 생성
-    executor = A2AAgentExecutor(agent_endpoint={"url": "http://localhost:10002"})
+    executor = A2AAgentExecutor()
     
     # 시뮬레이터 생성
     simulator = ProcessGPTAgentSimulator(

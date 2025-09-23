@@ -1,10 +1,13 @@
 import asyncio
 import os
 from processgpt_agent_sdk import ProcessGPTAgentServer
-from my_custom_executor import MyBusinessAgentExecutor
+from a2a_agent_executor.executor import A2AAgentExecutor
+from dotenv import load_dotenv
 
 async def main():
     """ProcessGPT 서버 메인 함수"""
+    
+    load_dotenv(override=True)
     
     # 1. 환경변수 확인
     if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_ANON_KEY"):
@@ -16,13 +19,12 @@ async def main():
     
     # 3. ProcessGPT 서버 생성
     server = ProcessGPTAgentServer(
-        executor=executor,
-        polling_interval=5,  # 5초마다 폴링
-        agent_orch="a2a"  # 에이전트 타입 식별자
+        agent_executor=executor,
+        agent_type="a2a"  # 에이전트 타입 식별자
     )
     
     print("ProcessGPT 서버 시작...")
-    print(f"에이전트 타입: my_business_agent")
+    print(f"에이전트 타입: a2a_agent")
     print(f"폴링 간격: 5초")
     print("Ctrl+C로 서버를 중지할 수 있습니다.")
     

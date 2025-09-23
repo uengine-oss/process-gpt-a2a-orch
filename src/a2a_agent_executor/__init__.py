@@ -1,4 +1,4 @@
-from .executor import A2AAgentExecutor, AgentEndpoint
+from a2a_agent_executor.executor import A2AAgentExecutor
 
 
 __version__ = "0.1.0"
