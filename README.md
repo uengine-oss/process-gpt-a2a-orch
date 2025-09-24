@@ -1,14 +1,16 @@
 # A2A Agent Executor
 
-A proxy component that forwards requests to an A2A agent and shows intermediate results. This component follows the Agent2Agent (A2A) Protocol.
+A proxy component that forwards requests to an A2A agent and shows intermediate results. This component follows the Agent2Agent (A2A) Protocol and integrates with ProcessGPT Agent SDK for simulation and testing.
 
 ## Features
 
-- Acts as an A2A server that can be called by clients
-- Internally forwards requests to another A2A agent using A2A client functionality
-- Provides intermediate results during execution
-- Follows the Agent2Agent (A2A) Protocol specification
-- Supports ProcessGPTAgentSimulator for testing
+- **A2A Protocol Compliance**: Acts as an A2A server that can be called by clients
+- **Request Forwarding**: Internally forwards requests to another A2A agent using A2A client functionality
+- **Real-time Progress**: Provides intermediate results and progress updates during execution
+- **ProcessGPT Integration**: Supports ProcessGPTAgentSimulator for comprehensive testing
+- **Flexible Configuration**: Supports dynamic agent endpoint configuration through context
+- **Error Handling**: Robust error handling with graceful fallbacks for simulation mode
+- **Docker Support**: Containerized deployment with Docker
 
 ## Installation
 
@@ -31,42 +33,69 @@ uv pip install -e .
 
 ## Usage
 
-### Command Line
+### ProcessGPT Server Mode
 
-```bash
-# Start the agent executor with default settings
-a2a-agent-executor --target-agent http://localhost:10002 --port 8000
-
-# Show help
-a2a-agent-executor --help
-```
-
-### Python API
+The primary usage is as a ProcessGPT Agent Server that integrates with Supabase:
 
 ```python
 import asyncio
-from a2a_agent_executor import A2AAgentExecutor, A2AAgentServer
+import os
+from processgpt_agent_sdk import ProcessGPTAgentServer
+from a2a_agent_executor import A2AAgentExecutor
+from dotenv import load_dotenv
 
 async def main():
-    # Create the executor with a single target agent endpoint
-    agent_executor = A2AAgentExecutor(
-        agent_endpoint="http://localhost:10002",
-        name="AgentProxy",
-        description="Proxies requests to a target A2A agent"
+    load_dotenv(override=True)
+    
+    # Ensure Supabase configuration
+    if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
+        print("Error: SUPABASE_URL and SUPABASE_KEY environment variables are required.")
+        return
+
+    executor = A2AAgentExecutor()
+    
+    server = ProcessGPTAgentServer(
+        agent_executor=executor,
+        agent_type="a2a"
     )
     
-    # Create the server
-    server = A2AAgentServer(
-        agent_executors=[agent_executor],
-        host="0.0.0.0",
-        port=8000
-    )
-    
-    # Start the server
-    await server.start()
+    await server.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
+```
+
+### Docker Deployment
+
+```bash
+# Build the Docker image
+docker build -t a2a-agent-executor .
+
+# Run with environment variables
+docker run -p 8000:8000 \
+  -e SUPABASE_URL=your_supabase_url \
+  -e SUPABASE_KEY=your_supabase_key \
+  a2a-agent-executor
+```
+
+### Agent Configuration
+
+The executor dynamically configures target agents through the request context. Agent endpoints are specified in the context data:
+
+```python
+# Agent configuration in context
+context_data = {
+    "extras": {
+        "agents": [
+            {
+                "endpoint": "http://localhost:10002",
+                "name": "WeatherAgent",
+                "goal": "Provide weather information",
+                "role": "weather_assistant"
+            }
+        ]
+    }
+}
 ```
 
 ### Message Format
@@ -85,47 +114,45 @@ The A2AAgentExecutor forwards any message format to the target agent. You can se
 
 ## Testing with ProcessGPTAgentSimulator
 
-The package now supports testing with ProcessGPTAgentSimulator:
+The package supports comprehensive testing with ProcessGPTAgentSimulator:
 
 ```python
-from a2a.server.agent_execution import AgentExecutor, RequestContext
-from a2a.server.events.event_queue import EventQueue
-from process_gpt_agent_sdk.simulator import ProcessGPTAgentSimulator
+import asyncio
+import logging
+from processgpt_agent_sdk.simulator import ProcessGPTAgentSimulator
+from a2a_agent_executor import A2AAgentExecutor
 
-# Create a custom executor
-class CustomAgentExecutor(AgentExecutor):
-    async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
-        # 사용자 정의 로직 구현
-        message = context.message
-        
-        # 중간 결과 발행
-        await self._publish_progress(
-            context,
-            event_queue,
-            "Processing request...",
-            1,
-            2
-        )
-        
-        # 비즈니스 로직 수행...
-        
-        # 최종 결과 발행
-        final_task = Task(
-            id=context.task_id,
-            status=TaskStatus.completed,
-            output={"result": "Success"}
-        )
-        await event_queue.publish_task(final_task)
-        
-    async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
-        # 취소 로직 구현
-        pass
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-# 시뮬레이터 사용
-executor = CustomAgentExecutor()
-simulator = ProcessGPTAgentSimulator(executor=executor)
-result = await simulator.run_simulation("테스트 프롬프트")
+async def main():
+    # Create the A2A agent executor
+    executor = A2AAgentExecutor()
+    
+    # Create the simulator
+    simulator = ProcessGPTAgentSimulator(
+        executor=executor,
+        agent_orch="a2a"
+    )
+    
+    # Run simulation with test prompts
+    await simulator.run_simulation(
+        prompt="인천에 괜찮은 숙소를 알려줘",
+        activity_name="report_generation",
+        user_id="user123",
+        tenant_id="tenant456"
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
+
+### Simulation Features
+
+- **Mock Responses**: When no A2A agent is running, the executor provides simulated responses
+- **Progress Tracking**: Real-time progress updates during execution
+- **Error Handling**: Graceful handling of connection errors and timeouts
+- **Context Management**: Proper task and context ID management for simulation
 
 ## Running the Simulator
 
@@ -140,6 +167,76 @@ This will:
 1. Create a virtual environment using uv
 2. Install the package and dependencies
 3. Run the simulation with test prompts
+
+## Project Structure
+
+```
+process-gpt-a2a-orch/
+├── src/
+│   ├── a2a_agent_executor/
+│   │   ├── __init__.py          # Package initialization
+│   │   ├── executor.py          # Main A2A agent executor implementation
+│   │   ├── server.py            # ProcessGPT server integration
+│   │   ├── starlette_a2a_server.py  # Starlette-based A2A server
+│   │   └── test_a2a_client.py   # A2A client testing utilities
+│   └── simulation.py            # Simulation script for testing
+├── Dockerfile                   # Docker container configuration
+├── pyproject.toml              # Python project configuration
+├── requirements.txt            # Python dependencies
+├── run_simulator.sh            # Simulation runner script
+└── README.md                   # This documentation
+```
+
+## Dependencies
+
+- **a2a-sdk**: Agent2Agent protocol SDK
+- **process-gpt-agent-sdk**: ProcessGPT agent integration
+- **pydantic**: Data validation and settings management
+- **httpx**: HTTP client for A2A communication
+- **uvicorn**: ASGI server for web applications
+- **starlette**: Web framework for building APIs
+
+## Environment Variables
+
+The following environment variables are required for ProcessGPT integration:
+
+- `SUPABASE_URL`: Supabase project URL
+- `SUPABASE_KEY`: Supabase project API key
+
+Create a `.env` file in the project root:
+
+```bash
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_KEY=your_supabase_anon_key
+```
+
+## Development
+
+### Setup Development Environment
+
+```bash
+# Clone the repository
+git clone https://github.com/uengine-oss/process-gpt-a2a-orch.git
+cd process-gpt-a2a-orch
+
+# Create virtual environment
+uv venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+uv pip install -e .
+uv pip install -e ".[dev]"  # Install development dependencies
+```
+
+### Running Tests
+
+```bash
+# Run the simulation
+python src/simulation.py
+
+# Or use the provided script
+./run_simulator.sh
+```
 
 ## License
 
