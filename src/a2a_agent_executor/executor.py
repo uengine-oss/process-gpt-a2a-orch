@@ -416,7 +416,6 @@ class A2AAgentExecutor(AgentExecutor):
                     metadata={
                         'crew_type': 'task',
                         'event_type': 'task_completed',
-                        'status': 'failed',
                         'job_id': job_id,
                     },
                 ))
