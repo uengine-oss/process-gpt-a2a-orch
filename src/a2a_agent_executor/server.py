@@ -33,7 +33,8 @@ async def main():
     print("ProcessGPT A2A Agent Executor 시작...")
     print("Supabase URL: ", os.getenv("SUPABASE_URL"))
     print("Supabase Key: ", os.getenv("SUPABASE_KEY"))
-    
+    print("ENV: ", os.getenv("ENV"))
+
     try:
         await server.run()
     except KeyboardInterrupt:
