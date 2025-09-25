@@ -17,7 +17,8 @@ from dotenv import load_dotenv
 async def main():
     """ProcessGPT 서버 메인 함수"""
     
-    load_dotenv(override=True)
+    if os.getenv("ENV") != "dev" and os.getenv("ENV") != "production":
+        load_dotenv(override=True)
     
     if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
         print("오류: SUPABASE_URL과 SUPABASE_KEY 환경변수가 필요합니다.")
@@ -32,7 +33,6 @@ async def main():
     
     print("ProcessGPT A2A Agent Executor 시작...")
     print("Supabase URL: ", os.getenv("SUPABASE_URL"))
-    print("Supabase Key: ", os.getenv("SUPABASE_KEY"))
     print("ENV: ", os.getenv("ENV"))
 
     try:
