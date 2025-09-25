@@ -85,12 +85,36 @@ class A2AAgentExecutor(AgentExecutor):
             task_id = task_row.get("id", "unknown")
             logger.info(f"Executing request: {task_id}")
         
-        # Extract message from the context
-        message = context.message
+        # message = context.message
+        # TODO:: agent-sdk 에서 description > query 로 변경되면 이 부분 삭제
+        try:
+            message = ''
+            if hasattr(context, 'row') and context.row:
+                message = context.row.get('query', '')
+        except Exception as e:
+            message = context.message
+        if message == '':
+            message = context.message
+
+        # 피드백이 있으면 메시지에 포함
+        if hasattr(context, 'row') and context.row:
+            feedback_data = context.row.get('feedback', [])
+            if feedback_data and isinstance(feedback_data, list) and len(feedback_data) > 0:
+                try:
+                    sorted_feedback = sorted(feedback_data, key=lambda x: x.get('time', ''), reverse=True)
+                    latest_feedback = sorted_feedback[0]
+                    if isinstance(latest_feedback, dict) and 'content' in latest_feedback:
+                        feedback_content = latest_feedback['content']
+                        if feedback_content:
+                            message = f"{message}\n\n[Feedback]\n{feedback_content}"
+                except Exception as e:
+                    print(f"피드백 처리 중 오류: {e}")
+
         if not message:
             await self._publish_error(context, event_queue, "No message content provided")
             return
-            
+        print(f"Context Message: {message}")
+
         # Generate a fresh job_id for this run (must not equal todo_id)
         run_job_id = str(uuid.uuid4())
         try:
@@ -306,7 +330,7 @@ class A2AAgentExecutor(AgentExecutor):
                             metadata={
                                 "crew_type": "task",
                                 "event_type": "task_completed",
-                                "job_id": run_job_id,
+                                "job_id": run_job_id or self._generate_job_id(context=context),
                             },
                         )
                     )
@@ -416,7 +440,7 @@ class A2AAgentExecutor(AgentExecutor):
                     metadata={
                         'crew_type': 'task',
                         'event_type': 'task_completed',
-                        'job_id': job_id,
+                        'job_id': job_id or self._generate_job_id(context=context),
                     },
                 ))
             except Exception as e:
@@ -486,7 +510,7 @@ class A2AAgentExecutor(AgentExecutor):
                         'crew_type': 'task',
                         'event_type': ('task_started' if current_step == 1 else ('tool_usage_finished' if current_step >= total_steps else 'tool_usage_started')),
                         'total_steps': total_steps,
-                        'job_id': job_id,
+                        'job_id': job_id or self._generate_job_id(context=context),
                     },
                 ))
             except Exception as e:
@@ -584,6 +608,7 @@ class A2AAgentExecutor(AgentExecutor):
                     task_id = task_row.get('id')
                 if task_id:
                     return str(task_id)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to generate job_id from context: {e}")
+        # 항상 유효한 job_id를 반환
         return str(uuid.uuid4())
