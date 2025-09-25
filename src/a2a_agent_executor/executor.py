@@ -381,7 +381,7 @@ class A2AAgentExecutor(AgentExecutor):
         except Exception as e:
             logger.exception(f"Error executing request: {e}")
             # Try to emit a failure status with a job_id as well
-            await self._publish_error(context, event_queue, f"Error executing request: {str(e)}", job_id=self._generate_job_id(context=context))
+            await self._publish_error(context, event_queue, f"Error executing request: {str(e)}", job_id=run_job_id)
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         """
@@ -432,17 +432,48 @@ class A2AAgentExecutor(AgentExecutor):
         # Prefer DB event path
         if hasattr(event_queue, 'enqueue_event'):
             try:
-                event_queue.enqueue_event(TaskStatusUpdateEvent(
-                    status=TaskStatus(state=TaskState.failed),
-                    final=True,
-                    contextId=str(uuid.uuid4()),
-                    taskId=task_id,
-                    metadata={
-                        'crew_type': 'task',
-                        'event_type': 'task_completed',
-                        'job_id': job_id or self._generate_job_id(context=context),
-                    },
-                ))
+                context_id = str(uuid.uuid4())
+                event_queue.enqueue_event(
+                    TaskStatusUpdateEvent(
+                        status=TaskStatus(
+                            state=TaskState.failed,
+                            message=self._to_a2a_message({
+                                "result": error_message
+                            })
+                        ),
+                        final=True,
+                        contextId=context_id,
+                        taskId=task_id,
+                        metadata={
+                            'crew_type': 'task',
+                            'event_type': 'task_completed',
+                            'job_id': job_id or self._generate_job_id(context=context),
+                        },
+                    )
+                )
+                
+                artifact_payload: Dict[str, Any] = {
+                    'last_agent_message': error_message,
+                    'task_state': TaskState.failed,
+                    'context_id': context_id,
+                    'task_id': task_id,
+                    'history_compact': [],
+                }
+
+                artifact = new_text_artifact(
+                    name="current_result",
+                    description="Result of request to agent (structured).",
+                    text=json.dumps(artifact_payload, ensure_ascii=False),
+                )
+                
+                event_queue.enqueue_event(
+                    TaskArtifactUpdateEvent(
+                        artifact=artifact,
+                        lastChunk=True,
+                        contextId=context_id,
+                        taskId=task_id,
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to enqueue error event: {e}")
         else:
