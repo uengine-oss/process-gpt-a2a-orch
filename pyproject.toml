@@ -28,7 +28,9 @@ dependencies = [
     "starlette>=0.27.0",
     "python-dotenv>=1.0.0",
     "httpx>=0.24.0",
-    "process-gpt-agent-sdk==0.3.16",
+    "process-gpt-agent-sdk==0.3.3",
+    "pytest>=8.4.2",
+    "process-gpt-llm-factory==1.0.0",
 ]
 
 [project.optional-dependencies]

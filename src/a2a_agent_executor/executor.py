@@ -85,16 +85,10 @@ class A2AAgentExecutor(AgentExecutor):
             task_id = task_row.get("id", "unknown")
             logger.info(f"Executing request: {task_id}")
         
-        # message = context.message
-        # TODO:: agent-sdk 에서 description > query 로 변경되면 이 부분 삭제
-        try:
+        if context.message:
+            message = context.message
+        else:
             message = ''
-            if hasattr(context, 'row') and context.row:
-                message = context.row.get('query', '')
-        except Exception as e:
-            message = context.message
-        if message == '':
-            message = context.message
 
         # 피드백이 있으면 메시지에 포함
         if hasattr(context, 'row') and context.row:
