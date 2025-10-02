@@ -1,3 +1,15 @@
+import os
+from dotenv import load_dotenv
+
+if os.getenv("ENV") != "dev" and os.getenv("ENV") != "production":
+    load_dotenv(override=True)
+
+if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
+    print("오류: SUPABASE_URL과 SUPABASE_KEY 환경변수가 필요합니다.")
+
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_ENDPOINT"] = "https://api.smith.langchain.com"
+
 import httpx
 
 _orig_init = httpx.Client.__init__
@@ -7,23 +19,12 @@ def _patched_init(self, *args, **kwargs):
     return _orig_init(self, *args, **kwargs)
 httpx.Client.__init__ = _patched_init
 
-
 import asyncio
-import os
-from processgpt_agent_sdk import ProcessGPTAgentServer
 from a2a_agent_executor.executor import A2AAgentExecutor
-from dotenv import load_dotenv
+from processgpt_agent_sdk import ProcessGPTAgentServer
 
 async def main():
     """ProcessGPT 서버 메인 함수"""
-    
-    if os.getenv("ENV") != "dev" and os.getenv("ENV") != "production":
-        load_dotenv(override=True)
-    
-    if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
-        print("오류: SUPABASE_URL과 SUPABASE_KEY 환경변수가 필요합니다.")
-        return
-
     executor = A2AAgentExecutor()
     
     server = ProcessGPTAgentServer(
