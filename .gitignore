@@ -43,3 +43,8 @@ Thumbs.db
 
 # Project specific
 uv.lock
+
+# Private Datas
+p_*
+.temp
+logs

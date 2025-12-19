@@ -44,13 +44,16 @@ dev = [
 
 [project.scripts]
 a2a-agent-executor = "a2a_agent_executor.cli:main"
+a2a-webhook-receiver = "a2a_agent_webhook_receiver.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/a2a_agent_executor"]
+packages = ["src/a2a_agent_executor", "src/a2a_agent_webhook_receiver", "src/a2a_form_processor"]
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/a2a_agent_executor",
+    "src/a2a_agent_webhook_receiver",
+    "src/a2a_form_processor",
     "README.md",
     "LICENSE",
 ]

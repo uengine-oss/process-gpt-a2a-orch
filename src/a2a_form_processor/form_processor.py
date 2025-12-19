@@ -1,34 +1,39 @@
+import json
 import logging
-import os
 import re
+from typing import Any, Dict, Optional
 
-from langchain.prompts import PromptTemplate
 from langchain.output_parsers.json import SimpleJsonOutputParser
+from langchain.prompts import PromptTemplate
+
 from llm_factory import create_llm
-from typing import Dict, Any, Optional
-from .database import fetch_form_by_id, fetch_workitem_by_id
+
+from a2a_form_processor.database import fetch_form_by_id, fetch_workitem_by_id
 
 logger = logging.getLogger(__name__)
 
 model = create_llm(model="gpt-4o", streaming=True)
 
+
 class CustomJsonOutputParser(SimpleJsonOutputParser):
     def parse(self, text: str) -> dict:
         # Extract JSON from markdown if present
-        match = re.search(r'```json\n(.*?)\n```', text, re.DOTALL)
+        match = re.search(r"```json\n(.*?)\n```", text, re.DOTALL)
         if match:
             text = match.group(1)
         else:
             raise ValueError("No JSON content found within backticks.")
-        
+
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON: {str(e)}")
+
+
 parser = CustomJsonOutputParser()
 
 output_prompt = PromptTemplate.from_template(
-"""
+    """
 You are a data extraction assistant. Your task is to extract structured information from the given text and format it according to the provided form schema.
 
 ## Input Information
@@ -90,70 +95,68 @@ result should be in this JSON format:
 """
 )
 
-output_chain = (
-    output_prompt | model | parser
-)
+output_chain = output_prompt | model | parser
 
-async def generate_output_json(task_id: str, result_text: str, input_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
+
+async def generate_output_json(
+    task_id: str,
+    result_text: str,
+    input_text: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Generate output JSON data for a task using LLM.
-    
+
     This function fetches the workitem and associated form definition from the database,
     then uses an LLM to generate structured JSON output based on the result text.
-    
-    Args:
-        task_id: The task ID to fetch workitem information
-        result_text: The result text from the agent execution
-        input_text: The input text from the agent execution
-        
-    Returns:
-        Dict[str, Any]: Generated JSON output data conforming to the form schema,
-                       or None if form is not found or generation fails
     """
     try:
         workitem_data = await fetch_workitem_by_id(task_id)
-        
+
         if not workitem_data or len(workitem_data) == 0:
             logger.warning(f"Workitem not found for task_id: {task_id}")
             return None
-        
+
         workitem = workitem_data[0]
         logger.info(f"Retrieved workitem for task {task_id}: {workitem.get('name', 'unknown')}")
-        
-        form_id = workitem.get('tool').replace('formHandler:', '')
+
+        tool_val = (workitem.get("tool") or "").strip()
+        form_id = tool_val.replace("formHandler:", "") if tool_val else ""
         if not form_id:
             logger.info(f"No form_id found in workitem {task_id}, skipping form generation")
             return None
-        
-        tenant_id = workitem.get('tenant_id', None)
+
+        tenant_id = workitem.get("tenant_id", None)
         form_data = await fetch_form_by_id(form_id, tenant_id)
-        
+
         if not form_data or len(form_data) == 0:
             logger.warning(f"Form definition not found for form_id: {form_id}")
             return None
-        
+
         form_def = form_data[0]
-        form_fields = form_def.get('fields_json', {})
-        form_html = form_def.get('html', '')
+        form_fields = form_def.get("fields_json", {})
+        form_html = form_def.get("html", "")
         logger.info(f"Retrieved form definition: {form_def.get('name', 'unknown')}")
-        
-        result = await output_chain.ainvoke({
-            "result_text": result_text,
-            "form_html": form_html,
-            "form_fields": form_fields,
-            "input_text": input_text
-        })
-        
+
+        result = await output_chain.ainvoke(
+            {
+                "result_text": result_text,
+                "form_html": form_html,
+                "form_fields": form_fields,
+                "input_text": input_text,
+            }
+        )
+
         if not result:
             logger.error(f"Failed to generate output JSON for task {task_id}")
             return None
-        
-        output_json = result.get('output', {})
-        
+
+        output_json = result.get("output", {})
+
         logger.info(f"Successfully generated output JSON for task {task_id}")
         return output_json
-        
+
     except Exception as e:
         logger.error(f"Error generating output JSON for task {task_id}: {e}", exc_info=True)
         return None
+
 

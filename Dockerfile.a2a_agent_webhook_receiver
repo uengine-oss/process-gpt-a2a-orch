@@ -1,0 +1,28 @@
+FROM python:3.11-bullseye
+
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy only what this service needs
+COPY src/a2a_agent_webhook_receiver ./src/a2a_agent_webhook_receiver
+COPY src/a2a_form_processor ./src/a2a_form_processor
+
+EXPOSE 9000
+ENV PYTHONPATH="/app/src"
+
+CMD ["python", "src/a2a_agent_webhook_receiver/server.py"]
+
+

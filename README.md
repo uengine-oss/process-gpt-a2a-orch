@@ -12,6 +12,15 @@ A proxy component that forwards requests to an A2A agent and shows intermediate 
 - **Error Handling**: Robust error handling with graceful fallbacks for simulation mode
 - **Docker Support**: Containerized deployment with Docker
 
+## Webhook Receiver (separate Pod)
+
+When the target A2A agent supports `push_notifications=True`, this project uses non-blocking requests and receives results via webhook callbacks.
+
+- **Executor Pod** (`a2a_agent_executor`): sends the A2A request with `push_notification_config.url` and records a first event (`event_type=webhook_accepted`).
+- **Receiver Pod** (`a2a_agent_webhook_receiver`): exposes `POST /webhook/a2a/todolist/{todolist_id}` and records completion/failure events + artifact when callbacks arrive.
+
+Important: In non-blocking mode, terminal callbacks (`completed`) may not arrive depending on the upstream A2A server/SDK behavior. This design ensures the first “accepted/submitted” event is always recorded, and completion is recorded only if callback arrives.
+
 ## Installation
 
 ### Prerequisites
@@ -203,6 +212,17 @@ The following environment variables are required for ProcessGPT integration:
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_KEY`: Supabase project API key
 
+### Executor Pod
+
+- `WEBHOOK_PUBLIC_BASE_URL`: Public base URL of the receiver pod
+  - Example: `http://a2a-webhook-receiver:9000`
+
+### Receiver Pod
+
+- `WEBHOOK_RECEIVER_HOST`: bind host (default `0.0.0.0`)
+- `WEBHOOK_RECEIVER_PORT`: bind port (default `9000`)
+- (no token validation) the receiver accepts webhook callbacks without `X-A2A-Notification-Token`
+
 Create a `.env` file in the project root:
 
 ```bash
@@ -236,6 +256,14 @@ python src/simulation.py
 
 # Or use the provided script
 ./run_simulator.sh
+```
+
+## Running the Receiver Pod locally
+
+After installing the package in editable mode:
+
+```bash
+a2a-webhook-receiver
 ```
 
 ## License
