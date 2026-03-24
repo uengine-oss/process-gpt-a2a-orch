@@ -6,13 +6,13 @@ from typing import Any, Dict, Optional
 from langchain.output_parsers.json import SimpleJsonOutputParser
 from langchain.prompts import PromptTemplate
 
-from llm_factory import create_llm
+from a2a_form_processor.llm import create_llm
 
 from a2a_form_processor.database import fetch_form_by_id, fetch_workitem_by_id
 
 logger = logging.getLogger(__name__)
 
-model = create_llm(model="gpt-4o", streaming=True)
+model = create_llm(streaming=True)
 
 
 class CustomJsonOutputParser(SimpleJsonOutputParser):
