@@ -17,3 +17,10 @@ node_modules/
 .gitignore
 README.md
 
+
+# 로컬 개발용 비밀 값은 이미지에 넣지 않는다 — 실행 환경 값은 compose/k8s 가 넣는다
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example

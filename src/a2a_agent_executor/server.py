@@ -16,7 +16,8 @@ import os
 from dotenv import load_dotenv
 
 if os.getenv("ENV") != "dev" and os.getenv("ENV") != "production":
-    load_dotenv(override=True)
+    # .env 는 로컬 개발에서 빈 값만 채운다 — compose/k8s 가 넣은 값을 덮어쓰지 않는다
+    load_dotenv(override=False)
 
 if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
     print("오류: SUPABASE_URL과 SUPABASE_KEY 환경변수가 필요합니다.")
